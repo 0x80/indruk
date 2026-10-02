@@ -1,0 +1,44 @@
+{
+  "name": "@emberengineering/line-count",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The line-count command: lines of code, test share and complexity for any checkout, bucketed by workspace package.",
+  "license": "MIT",
+  "author": "Thijs Koerselman",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EmberEngineering/agent-tooling.git",
+    "directory": "packages/line-count"
+  },
+  "bin": {
+    "line-count": "./dist/cli.mjs"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "type": "module",
+  "scripts": {
+    "build": "tsdown",
+    "postbuild": "node scripts/write-build-stamp.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@emberengineering/cli-output": "workspace:*",
+    "@emberengineering/foundation": "workspace:*",
+    "yaml": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@emberengineering/config-vitest": "workspace:*",
+    "@emberengineering/typescript-config": "workspace:*",
+    "@types/node": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}
