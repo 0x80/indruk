@@ -20,7 +20,7 @@
   "type": "module",
   "scripts": {
     "build": "tsdown",
-    "postbuild": "node scripts/write-build-stamp.ts",
+    "postbuild": "node ../../scripts/src/write-build-stamp.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

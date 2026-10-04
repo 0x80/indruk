@@ -1,6 +1,9 @@
 {
   "extends": ["//"],
   "tasks": {
-    "build": { "env": ["GIT_REVISION"] }
+    "build": {
+      "env": ["GIT_REVISION"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/scripts/src/write-build-stamp.mjs"]
+    }
   }
 }
