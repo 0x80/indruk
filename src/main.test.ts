@@ -58,15 +58,15 @@ describe('main', () => {
     const result = await run(['--help'])
 
     expect(result.code).toBe(0)
-    expect(result.out).toMatch(/^Usage: line-count \[options\]/u)
+    expect(result.out).toMatch(/^Usage: linecount \[options\]/u)
   })
 
   it.each([
-    [['--full', '--json'], 'line-count: --full and --json cannot be combined\n'],
-    [['--extensions', ' , '], 'line-count: --extensions needs at least one extension\n'],
+    [['--full', '--json'], 'linecount: --full and --json cannot be combined\n'],
+    [['--extensions', ' , '], 'linecount: --extensions needs at least one extension\n'],
     [
       ['src'],
-      "line-count: Unexpected argument 'src'. This command does not take positional arguments\n",
+      "linecount: Unexpected argument 'src'. This command does not take positional arguments\n",
     ],
   ])('refuses %j before counting anything', async (argv, message) => {
     const result = await run(argv)

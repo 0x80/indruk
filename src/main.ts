@@ -10,7 +10,7 @@ import { workspacePackageDirectories } from './workspace.ts'
 
 export type LineCountIo = Pick<CliOutput, 'stdout' | 'stderr'> & { cwd: string }
 
-const HELP = `Usage: line-count [options]
+const HELP = `Usage: linecount [options]
 
 Lines of code in the current checkout: the totals, the share in tests, and
 code per workspace package. Counts programming languages only; prose, data
@@ -69,7 +69,7 @@ function parseExtensions(value: string): string[] {
   return extensions
 }
 
-/** Runs `line-count` and answers its exit code; a refusal is written to stderr. */
+/** Runs `linecount` and answers its exit code; a refusal is written to stderr. */
 export async function main(argv: readonly string[], io: LineCountIo): Promise<number> {
   try {
     const { values } = parseArgs({
@@ -111,7 +111,7 @@ export async function main(argv: readonly string[], io: LineCountIo): Promise<nu
     )
     return 0
   } catch (error) {
-    io.stderr(`line-count: ${error instanceof Error ? error.message : String(error)}\n`)
+    io.stderr(`linecount: ${error instanceof Error ? error.message : String(error)}\n`)
     return 1
   }
 }

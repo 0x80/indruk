@@ -2,7 +2,7 @@
   "name": "@emberengineering/line-count",
   "version": "0.1.0",
   "private": true,
-  "description": "The line-count command: lines of code, test share and complexity for any checkout, bucketed by workspace package.",
+  "description": "The linecount command: lines of code, test share and complexity for any checkout, bucketed by workspace package.",
   "license": "MIT",
   "author": "Thijs Koerselman",
   "repository": {
@@ -11,7 +11,7 @@
     "directory": "packages/line-count"
   },
   "bin": {
-    "line-count": "./dist/cli.mjs"
+    "linecount": "./dist/cli.mjs"
   },
   "files": [
     "dist",
