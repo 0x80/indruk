@@ -1,13 +1,19 @@
 import type { SccFile, SccLanguage } from './scc.ts'
+import type { WorkspacePackage } from './workspace.ts'
 
-export type Totals = {
+export type Counts = {
   files: number
-  /** Code lines, test files included. */
   code: number
-  /** The share of `code` that sits in test files. */
-  tests: number
   comment: number
   complexity: number
+}
+
+/** Counts over every file, and the same counts for each side of the production and test split. */
+export type Totals = Counts & {
+  /** Every file that is not test code: what the checkout runs, ships or builds with. */
+  production: Counts
+  /** Tests and what only tests use: helpers, fixtures, runner setup and test-support packages. */
+  tests: Counts
 }
 
 export type Bucket = Totals & {
@@ -18,9 +24,9 @@ export type Bucket = Totals & {
 
 export type LineCount = {
   grand: Totals
-  /** Sorted by code, largest first. */
+  /** Sorted by production code, largest first. */
   categories: (Totals & { name: string; buckets: Bucket[] })[]
-  /** Sorted by code, largest first. */
+  /** Sorted by code, largest first, as the language mix reports each one's share of all code. */
   languages: (Totals & { name: string })[]
 }
 
@@ -86,48 +92,62 @@ const TEST_DIRECTORIES = new Set([
 
 /**
  * Whether a path is test code by the naming conventions JavaScript, Python
- * and Go projects share. A heuristic: a test helper outside these shapes
- * counts as source.
+ * and Go projects share: test files, test directories, test helpers, and a
+ * test runner's own config and setup files. A heuristic: a test helper
+ * outside these shapes counts as production code.
  */
 export function isTestPath(location: string): boolean {
   const segments = location.split('/')
   const name = segments.at(-1) ?? ''
   return (
     segments.slice(0, -1).some((segment) => TEST_DIRECTORIES.has(segment)) ||
-    /\.(?:test|spec)\.[^/]+$/u.test(name) ||
-    /[.-]test-(?:support|utils|helpers)\.[^/]+$/u.test(name) ||
-    /^test_.+\.py$|_test\.(?:go|py)$/u.test(name)
+    /\.(?:test|spec)(?:-d)?\.[^/]+$/u.test(name) ||
+    /(?:^|[.-])test-(?:support|utils|helpers)\.[^/]+$/u.test(name) ||
+    /^(?:vitest|jest|playwright)\.(?:[^/]+\.)?(?:config|setup|workspace)\.[^/]+$/u.test(name) ||
+    /^test_.+\.py$|_test\.(?:go|py)$|^conftest\.py$/u.test(name)
   )
 }
 
 /**
- * The bucket and category a repository-relative path belongs to. A file in a
- * workspace package is counted under that package, and its category is the
- * package's first path segment. Any other file is counted under its top-level
- * directory.
+ * Where a repository-relative path is counted, and whether it is test code.
+ * A file in a workspace package is counted under that package, and its
+ * category is the package's first path segment. Any other file is counted
+ * under its top-level directory. Every file of a test-support package is test
+ * code; elsewhere {@link isTestPath} decides.
  */
-export function bucketFor(
+export function classify(
   location: string,
-  packageDirectories: readonly string[],
-): { bucket: string; category: string } {
-  const owner = packageDirectories.find((directory) => location.startsWith(`${directory}/`))
-  if (owner !== undefined) return { bucket: owner, category: owner.split('/')[0] ?? owner }
+  packages: readonly WorkspacePackage[],
+): { bucket: string; category: string; isTest: boolean } {
+  const owner = packages.find((candidate) => location.startsWith(`${candidate.directory}/`))
+  const isTest = owner?.testSupport === true || isTestPath(location)
+  if (owner !== undefined) {
+    return { bucket: owner.directory, category: owner.directory.split('/')[0] ?? '', isTest }
+  }
   const slash = location.indexOf('/')
-  if (slash === -1) return { bucket: ROOT_BUCKET, category: ROOT_BUCKET }
+  if (slash === -1) return { bucket: ROOT_BUCKET, category: ROOT_BUCKET, isTest }
   const top = location.slice(0, slash)
-  return { bucket: top, category: top }
+  return { bucket: top, category: top, isTest }
+}
+
+function emptyCounts(): Counts {
+  return { files: 0, code: 0, comment: 0, complexity: 0 }
 }
 
 function emptyTotals(): Totals {
-  return { files: 0, code: 0, tests: 0, comment: 0, complexity: 0 }
+  return { ...emptyCounts(), production: emptyCounts(), tests: emptyCounts() }
+}
+
+function addCounts(target: Counts, file: SccFile): void {
+  target.files += 1
+  target.code += file.Code
+  target.comment += file.Comment
+  target.complexity += file.Complexity
 }
 
 function addTo(target: Totals, file: SccFile, isTest: boolean): void {
-  target.files += 1
-  target.code += file.Code
-  if (isTest) target.tests += file.Code
-  target.comment += file.Comment
-  target.complexity += file.Complexity
+  addCounts(target, file)
+  addCounts(isTest ? target.tests : target.production, file)
 }
 
 function entry<T extends Totals>(map: Map<string, T>, key: string, create: () => T): T {
@@ -139,12 +159,13 @@ function entry<T extends Totals>(map: Map<string, T>, key: string, create: () =>
   return value
 }
 
-const byCode = (left: Totals, right: Totals): number => right.code - left.code
+/** Largest production code first; all-test groups by their test code after them. */
+const byProduction = (left: Totals, right: Totals): number =>
+  right.production.code - left.production.code || right.code - left.code
 
-/** Sum scc's per-file counts into languages, buckets, categories and a grand total. */
 export function aggregate(
   languages: readonly SccLanguage[],
-  packageDirectories: readonly string[],
+  packages: readonly WorkspacePackage[],
 ): LineCount {
   const grand = emptyTotals()
   const buckets = new Map<string, Bucket>()
@@ -153,8 +174,7 @@ export function aggregate(
 
   for (const language of languages) {
     for (const file of language.Files ?? []) {
-      const isTest = isTestPath(file.Location)
-      const { bucket, category } = bucketFor(file.Location, packageDirectories)
+      const { bucket, category, isTest } = classify(file.Location, packages)
       addTo(grand, file, isTest)
       addTo(
         entry(buckets, bucket, () => ({ name: bucket, category, ...emptyTotals() })),
@@ -176,12 +196,12 @@ export function aggregate(
 
   return {
     grand,
-    categories: [...categories.values()].sort(byCode).map((category) => ({
+    categories: [...categories.values()].sort(byProduction).map((category) => ({
       ...category,
       buckets: [...buckets.values()]
         .filter((bucket) => bucket.category === category.name)
-        .sort(byCode),
+        .sort(byProduction),
     })),
-    languages: [...languageTotals.values()].sort(byCode),
+    languages: [...languageTotals.values()].sort((left, right) => right.code - left.code),
   }
 }

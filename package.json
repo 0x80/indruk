@@ -2,7 +2,7 @@
   "name": "@emberengineering/line-count",
   "version": "0.1.0",
   "private": true,
-  "description": "The linecount command: lines of code, test share and complexity for any checkout, bucketed by workspace package.",
+  "description": "The linecount command: production and test code, comments and complexity for any checkout, bucketed by workspace package.",
   "license": "MIT",
   "author": "Thijs Koerselman",
   "repository": {
@@ -27,12 +27,20 @@
   "dependencies": {
     "@emberengineering/cli-output": "workspace:*",
     "@emberengineering/foundation": "workspace:*",
+    "mdast-util-from-markdown": "^2.1.0",
+    "mdast-util-frontmatter": "^2.0.1",
+    "mdast-util-gfm": "^3.1.0",
+    "mdast-util-mdx": "^3.0.0",
+    "micromark-extension-frontmatter": "^2.0.0",
+    "micromark-extension-gfm": "^3.0.0",
+    "micromark-extension-mdxjs": "^3.0.0",
     "yaml": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@emberengineering/config-vitest": "workspace:*",
     "@emberengineering/typescript-config": "workspace:*",
+    "@types/mdast": "^4.0.4",
     "@types/node": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:",

@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { describe, expect, it, onTestFinished } from 'vitest'
-import { workspacePackageDirectories } from './workspace.ts'
+import { workspacePackages } from './workspace.ts'
 
 /** A checkout owned by the calling test, removed when that test finishes. */
 async function checkout(): Promise<{
@@ -22,7 +22,10 @@ async function checkout(): Promise<{
   }
 }
 
-describe('workspacePackageDirectories', () => {
+const directories = (packages: readonly { directory: string }[]) =>
+  packages.map((entry) => entry.directory)
+
+describe('workspacePackages', () => {
   it('expands the pnpm globs to directories holding a manifest, deepest first', async () => {
     const { root, write } = await checkout()
     await write(
@@ -36,7 +39,7 @@ describe('workspacePackageDirectories', () => {
     await write('packages/server/db/package.json')
     await write('scripts/package.json')
 
-    expect(await workspacePackageDirectories(root)).toEqual([
+    expect(directories(await workspacePackages(root))).toEqual([
       'packages/server/db',
       'apps/web',
       'scripts',
@@ -48,22 +51,84 @@ describe('workspacePackageDirectories', () => {
     await write('package.json', JSON.stringify({ workspaces: { packages: ['libs/*'] } }))
     await write('libs/core/package.json')
 
-    expect(await workspacePackageDirectories(root)).toEqual(['libs/core'])
+    expect(directories(await workspacePackages(root))).toEqual(['libs/core'])
   })
 
   it('answers no packages for a checkout that declares no workspace', async () => {
     const { root, write } = await checkout()
     await write('package.json', JSON.stringify({ name: 'single' }))
 
-    expect(await workspacePackageDirectories(root)).toEqual([])
+    expect(await workspacePackages(root)).toEqual([])
   })
 
   it('refuses a workspace file whose packages are not a list of globs', async () => {
     const { root, write } = await checkout()
     await write('pnpm-workspace.yaml', 'packages: apps/*\n')
 
-    await expect(workspacePackageDirectories(root)).rejects.toThrow(
+    await expect(workspacePackages(root)).rejects.toThrow(
       'pnpm-workspace.yaml packages does not hold a list of package globs',
+    )
+  })
+
+  it('marks a private package shipping a test runner as test support, and nothing else', async () => {
+    const { root, write } = await checkout()
+    await write('pnpm-workspace.yaml', "packages:\n  - 'packages/*'\n")
+    const manifest = (fields: Record<string, unknown>) => JSON.stringify(fields)
+    await write(
+      'packages/config-vitest/package.json',
+      manifest({ private: true, dependencies: { vitest: '4.0.0' } }),
+    )
+    await write(
+      'packages/e2e-harness/package.json',
+      manifest({ private: true, peerDependencies: { '@playwright/test': '1.0.0' } }),
+    )
+    await write(
+      'packages/app/package.json',
+      manifest({ private: true, devDependencies: { vitest: '4.0.0' } }),
+    )
+    await write(
+      'packages/vitest-plugin/package.json',
+      manifest({ dependencies: { vitest: '4.0.0' } }),
+    )
+
+    expect(await workspacePackages(root)).toEqual([
+      { directory: 'packages/app', testSupport: false },
+      { directory: 'packages/config-vitest', testSupport: true },
+      { directory: 'packages/e2e-harness', testSupport: true },
+      { directory: 'packages/vitest-plugin', testSupport: false },
+    ])
+  })
+
+  it('reads a manifest that starts with a byte order mark', async () => {
+    const { root, write } = await checkout()
+    await write('pnpm-workspace.yaml', "packages:\n  - 'packages/*'\n")
+    await write(
+      'packages/harness/package.json',
+      `\uFEFF${JSON.stringify({ private: true, dependencies: { vitest: '4.0.0' } })}`,
+    )
+
+    expect(await workspacePackages(root)).toEqual([
+      { directory: 'packages/harness', testSupport: true },
+    ])
+  })
+
+  it('names the manifest that is not valid JSON', async () => {
+    const { root, write } = await checkout()
+    await write('pnpm-workspace.yaml', "packages:\n  - 'packages/*'\n")
+    await write('packages/app/package.json', '{ "name": ')
+
+    await expect(workspacePackages(root)).rejects.toThrow(
+      `${join(root, 'packages/app/package.json')} is not valid JSON`,
+    )
+  })
+
+  it('refuses a package manifest that is not a JSON object', async () => {
+    const { root, write } = await checkout()
+    await write('pnpm-workspace.yaml', "packages:\n  - 'packages/*'\n")
+    await write('packages/app/package.json', '[]')
+
+    await expect(workspacePackages(root)).rejects.toThrow(
+      `${join(root, 'packages/app/package.json')} does not hold a JSON object`,
     )
   })
 })

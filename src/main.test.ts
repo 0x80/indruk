@@ -118,34 +118,122 @@ describe('checkout', () => {
   })
 })
 
-describe('main counting a checkout', () => {
-  it('reports only the programming languages scc found, by default', async () => {
-    const directory = await temporaryDirectory()
-    const repository = join(directory, 'demo')
-    git(['init', '-q', repository])
-    const bin = join(directory, 'bin')
-    await mkdir(bin)
-    const sccOutput = JSON.stringify([
-      {
-        Name: 'TypeScript',
-        Files: [{ Location: 'src/a.ts', Code: 70, Comment: 5, Complexity: 3 }],
-      },
-      { Name: 'Markdown', Files: [{ Location: 'README.md', Code: 30, Comment: 0, Complexity: 0 }] },
-    ])
-    await writeFile(join(bin, 'scc'), `#!/bin/sh\nprintf '%s' '${sccOutput}'\n`)
-    await chmod(join(bin, 'scc'), 0o755)
-    vi.stubEnv('PATH', `${bin}:${process.env['PATH'] ?? ''}`)
+/**
+ * A repository whose scc on PATH reports one TypeScript file, a README and
+ * one runbook under docs/ops, with the Markdown files written to disk.
+ */
+async function fakeCheckout(
+  extraFiles: readonly { Location: string; Code: number }[] = [],
+): Promise<string> {
+  const directory = await temporaryDirectory()
+  const repository = join(directory, 'demo')
+  git(['init', '-q', repository])
+  const bin = join(directory, 'bin')
+  await mkdir(bin)
+  const sccOutput = JSON.stringify([
+    {
+      Name: 'TypeScript',
+      Files: [
+        { Location: 'src/a.ts', Code: 70, Comment: 5, Complexity: 3 },
+        ...extraFiles.map((extra) => ({ ...extra, Comment: 0, Complexity: 0 })),
+      ],
+    },
+    {
+      Name: 'Markdown',
+      Files: [
+        { Location: 'README.md', Code: 30, Comment: 0, Complexity: 0 },
+        { Location: 'docs/ops/runbook.md', Code: 3, Comment: 0, Complexity: 0 },
+      ],
+    },
+  ])
+  await writeFile(join(bin, 'scc'), `#!/bin/sh\nprintf '%s' '${sccOutput}'\n`)
+  await chmod(join(bin, 'scc'), 0o755)
+  await writeFile(join(repository, 'README.md'), 'Not counted.\n')
+  await mkdir(join(repository, 'docs', 'ops'), { recursive: true })
+  await writeFile(
+    join(repository, 'docs', 'ops', 'runbook.md'),
+    'Read me first.\n\n```sh\nls -la\n```\n',
+  )
+  vi.stubEnv('PATH', `${bin}:${process.env['PATH'] ?? ''}`)
+  return repository
+}
 
-    let out = ''
-    const code = await main([], {
-      stdout: (chunk) => {
-        out += chunk
-      },
-      stderr: () => {},
-      cwd: repository,
-    })
+async function runIn(
+  repository: string,
+  argv: readonly string[],
+): Promise<{ code: number; out: string }> {
+  let out = ''
+  const code = await main(argv, {
+    stdout: (chunk) => {
+      out += chunk
+    },
+    stderr: () => {},
+    cwd: repository,
+  })
+  return { code, out }
+}
+
+describe('main counting a checkout', () => {
+  it('counts only programming languages as code, and Markdown under docs as words', async () => {
+    const { code, out } = await runIn(await fakeCheckout(), [])
 
     expect(code).toBe(0)
-    expect(out.split('\n')[0]).toBe('demo: 70 lines of code in 1 files')
+    const lines = out.split('\n')
+    expect(lines[0]).toBe('demo: 70 lines of code in 1 file')
+    expect(lines[6]).toBe('docs      3 words in 1 document under docs/, about 1 minute of reading')
+    expect(lines.slice(-4)).toEqual([
+      '',
+      'docs/  words  share  files',
+      'ops        3   100%      1',
+      '',
+    ])
+  })
+
+  it('prints the production, test and docs counts as JSON', async () => {
+    const repository = await fakeCheckout()
+
+    const { code, out } = await runIn(repository, ['--json'])
+
+    expect(code).toBe(0)
+    const parsed: unknown = JSON.parse(out)
+    expect(parsed).toMatchObject({
+      root: repository,
+      grand: {
+        files: 1,
+        code: 70,
+        production: { files: 1, code: 70, comment: 5, complexity: 3 },
+        tests: { files: 0, code: 0, comment: 0, complexity: 0 },
+      },
+      docs: { files: 1, words: 3, packages: [{ name: 'ops', files: 1, words: 3 }] },
+    })
+  })
+
+  it('counts every file of a private package that ships a test runner as test code', async () => {
+    const repository = await fakeCheckout([{ Location: 'packages/harness/src/home.ts', Code: 50 }])
+    await writeFile(join(repository, 'pnpm-workspace.yaml'), "packages:\n  - 'packages/*'\n")
+    await mkdir(join(repository, 'packages', 'harness'), { recursive: true })
+    await writeFile(
+      join(repository, 'packages', 'harness', 'package.json'),
+      JSON.stringify({ private: true, dependencies: { vitest: '4.0.0' } }),
+    )
+
+    const { code, out } = await runIn(repository, ['--json'])
+
+    expect(code).toBe(0)
+    expect(JSON.parse(out)).toMatchObject({
+      grand: { code: 120, production: { code: 70 }, tests: { code: 50 } },
+    })
+  })
+
+  it('reads no docs when extensions are named', async () => {
+    const repository = await fakeCheckout()
+
+    const json = await runIn(repository, ['--json', '--extensions', 'ts'])
+    const summary = await runIn(repository, ['--extensions', 'ts'])
+
+    const parsed: unknown = JSON.parse(json.out)
+    expect(parsed).toMatchObject({ root: repository })
+    expect(parsed).not.toHaveProperty('docs')
+    expect(summary.out).not.toMatch(/ words in \d+ documents? under docs\//u)
   })
 })

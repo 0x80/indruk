@@ -1,25 +1,34 @@
 import { basename, dirname } from 'node:path'
 import process from 'node:process'
-import { parseArgs } from 'node:util'
+import { parseArgs, styleText } from 'node:util'
 import type { CliOutput } from '@emberengineering/cli-output'
 import { GitCommandError, runGit } from '@emberengineering/foundation/git'
 import { aggregate, selectLanguages } from './count.ts'
-import { formatFull, formatJson, formatSummary } from './report.ts'
+import { countDocs } from './docs.ts'
+import { formatFull, formatJson, formatSummary, type Paint } from './report.ts'
 import { runScc } from './scc.ts'
-import { workspacePackageDirectories } from './workspace.ts'
+import { workspacePackages } from './workspace.ts'
 
 export type LineCountIo = Pick<CliOutput, 'stdout' | 'stderr'> & { cwd: string }
 
 const HELP = `Usage: linecount [options]
 
-Lines of code in the current checkout: the totals, the share in tests, and
-code per workspace package. Counts programming languages only; prose, data
-and configuration files are left out unless asked for.
+Lines of code in the current checkout, split into production code and test
+code, per workspace package. Test code is test files, test directories,
+test helpers (*-test-support, *-test-utils), test runner config and setup,
+and every file of a private package that ships a test runner as a
+dependency. Counts programming languages only; prose, data and
+configuration files are left out unless asked for.
+
+Comments are counted apart from code. Markdown and MDX under docs/ are
+measured in words of prose per subdirectory, leaving out front matter, code
+blocks, HTML and link targets, since a line count depends on how the author
+wraps paragraphs.
 
 Options
   --full                 every package, with test share, comments and complexity
   --json                 the whole count as JSON
-  --extensions <list>    only these file extensions, as in ts,tsx
+  --extensions <list>    only these file extensions, as in ts,tsx; skips the docs count
   --all-languages        also count Markdown, JSON, YAML and other non-code files
   -h, --help             print this message
 
@@ -57,6 +66,9 @@ export async function checkout(cwd: string): Promise<{ root: string; name: strin
   return { root, name }
 }
 
+/** Styles by Node's color policy, which `FORCE_COLOR` and `NO_COLOR` override. */
+const paint: Paint = (format, text) => styleText(format, text)
+
 /** Git's refusal when `cwd` is in no repository. */
 const NOT_A_REPOSITORY = /not a git repository/u
 
@@ -93,21 +105,23 @@ export async function main(argv: readonly string[], io: LineCountIo): Promise<nu
     const { root, name } = await checkout(io.cwd)
     const extensions =
       values.extensions === undefined ? undefined : parseExtensions(values.extensions)
-    const [languages, packageDirectories] = await Promise.all([
+    const [languages, packages] = await Promise.all([
       runScc(root, extensions),
-      workspacePackageDirectories(root),
+      workspacePackages(root),
     ])
     const count = aggregate(
       selectLanguages(languages, { allLanguages: values['all-languages'], extensions }),
-      packageDirectories,
+      packages,
     )
+    /** Naming extensions asks for those files only, so documentation is not read. */
+    const docs = extensions === undefined ? await countDocs(root, languages) : undefined
 
     io.stdout(
       values.json
-        ? formatJson(count, root)
+        ? formatJson(count, root, docs)
         : values.full
-          ? formatFull(count)
-          : formatSummary(count, name),
+          ? formatFull(count, paint, docs)
+          : formatSummary(count, name, paint, docs),
     )
     return 0
   } catch (error) {
