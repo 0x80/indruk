@@ -1,9 +1,9 @@
 import { execFileSync } from 'node:child_process'
-import { chmod, mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { chmod, mkdir, writeFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import { CHILD_PROCESS_BUDGET_MILLISECONDS } from '@emberengineering/config-vitest/spawn-budgets'
-import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
+import { temporaryDirectory } from '@emberengineering/config-vitest/temporary-directory'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { checkout, main } from './main.ts'
 
 vi.setConfig({
@@ -28,14 +28,6 @@ function git(args: readonly string[]): void {
       GIT_COMMITTER_EMAIL: 'a@b',
     },
   })
-}
-
-async function temporaryDirectory(): Promise<string> {
-  const directory = await realpath(await mkdtemp(join(tmpdir(), 'line-count-main-')))
-  onTestFinished(async () => {
-    await rm(directory, { recursive: true, force: true })
-  })
-  return directory
 }
 
 async function run(argv: readonly string[]): Promise<{ code: number; out: string; err: string }> {
@@ -77,7 +69,7 @@ describe('main', () => {
 
 describe('checkout', () => {
   it('names a linked worktree after its repository and counts from its top level', async () => {
-    const directory = await temporaryDirectory()
+    const directory = await temporaryDirectory('line-count-main-', { realPath: true })
     const repository = join(directory, 'demo')
     git(['init', '-q', repository])
     git(['-C', repository, 'commit', '-q', '--allow-empty', '-m', 'start'])
@@ -89,7 +81,7 @@ describe('checkout', () => {
   })
 
   it('names a worktree of a bare clone after its own top level', async () => {
-    const directory = await temporaryDirectory()
+    const directory = await temporaryDirectory('line-count-main-', { realPath: true })
     const source = join(directory, 'source')
     git(['init', '-q', source])
     git(['-C', source, 'commit', '-q', '--allow-empty', '-m', 'start'])
@@ -102,14 +94,14 @@ describe('checkout', () => {
   })
 
   it('counts the directory itself outside any repository', async () => {
-    const directory = await temporaryDirectory()
+    const directory = await temporaryDirectory('line-count-main-', { realPath: true })
     vi.stubEnv('GIT_CEILING_DIRECTORIES', dirname(directory))
 
     expect(await checkout(directory)).toEqual({ root: directory, name: basename(directory) })
   })
 
   it('refuses a repository git will not read rather than counting the subdirectory', async () => {
-    const directory = await temporaryDirectory()
+    const directory = await temporaryDirectory('line-count-main-', { realPath: true })
     git(['init', '-q', directory])
     git(['-C', directory, 'config', 'core.repositoryformatversion', '99'])
     await mkdir(join(directory, 'src'))
@@ -125,7 +117,7 @@ describe('checkout', () => {
 async function fakeCheckout(
   extraFiles: readonly { Location: string; Code: number }[] = [],
 ): Promise<string> {
-  const directory = await temporaryDirectory()
+  const directory = await temporaryDirectory('line-count-main-', { realPath: true })
   const repository = join(directory, 'demo')
   git(['init', '-q', repository])
   const bin = join(directory, 'bin')

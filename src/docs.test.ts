@@ -1,7 +1,7 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { mkdir, writeFile } from 'node:fs/promises'
+import { temporaryDirectory } from '@emberengineering/config-vitest/temporary-directory'
 import { dirname, join } from 'node:path'
-import { describe, expect, it, onTestFinished } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { countDocs, proseWords, TOP_LEVEL_DOCS } from './docs.ts'
 
 describe('proseWords', () => {
@@ -81,10 +81,7 @@ describe('proseWords', () => {
 
 describe('countDocs', () => {
   it('reads only Markdown and MDX under docs, summing words per subdirectory', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'line-count-docs-'))
-    onTestFinished(async () => {
-      await rm(root, { recursive: true, force: true })
-    })
+    const root = await temporaryDirectory('line-count-docs-')
     const write = async (path: string, contents: string): Promise<void> => {
       await mkdir(dirname(join(root, path)), { recursive: true })
       await writeFile(join(root, path), contents)
@@ -120,10 +117,7 @@ describe('countDocs', () => {
   })
 
   it('names the file that does not parse', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'line-count-docs-'))
-    onTestFinished(async () => {
-      await rm(root, { recursive: true, force: true })
-    })
+    const root = await temporaryDirectory('line-count-docs-')
     await mkdir(join(root, 'docs'), { recursive: true })
     await writeFile(join(root, 'docs', 'broken.mdx'), 'The total is {1 +\n')
 

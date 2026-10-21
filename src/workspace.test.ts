@@ -1,7 +1,7 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { mkdir, writeFile } from 'node:fs/promises'
+import { temporaryDirectory } from '@emberengineering/config-vitest/temporary-directory'
 import { dirname, join } from 'node:path'
-import { describe, expect, it, onTestFinished } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { workspacePackages } from './workspace.ts'
 
 /** A checkout owned by the calling test, removed when that test finishes. */
@@ -9,10 +9,7 @@ async function checkout(): Promise<{
   root: string
   write: (path: string, contents?: string) => Promise<void>
 }> {
-  const root = await mkdtemp(join(tmpdir(), 'line-count-workspace-'))
-  onTestFinished(async () => {
-    await rm(root, { recursive: true, force: true })
-  })
+  const root = await temporaryDirectory('line-count-workspace-')
   return {
     root,
     write: async (path, contents = '{}') => {
