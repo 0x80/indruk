@@ -1,16 +1,8 @@
-import { glob, readFile } from 'node:fs/promises'
+import { glob } from 'node:fs/promises'
 import { join, relative } from 'node:path'
-import { isMissingPath, isRecord } from '@emberengineering/foundation'
+import { isRecord } from '@emberengineering/foundation'
+import { readOptionalTextFile } from '@emberengineering/foundation/file'
 import { parse } from 'yaml'
-
-async function readOptional(path: string): Promise<string | undefined> {
-  try {
-    return await readFile(path, 'utf8')
-  } catch (error) {
-    if (isMissingPath(error)) return undefined
-    throw error
-  }
-}
 
 function stringList(value: unknown, source: string): string[] {
   if (!Array.isArray(value) || !value.every((entry) => typeof entry === 'string')) {
@@ -25,13 +17,13 @@ function stringList(value: unknown, source: string): string[] {
  * checkout with neither has none; a file that is present but unreadable throws.
  */
 async function workspaceGlobs(root: string): Promise<string[]> {
-  const pnpmWorkspace = await readOptional(join(root, 'pnpm-workspace.yaml'))
+  const pnpmWorkspace = await readOptionalTextFile(join(root, 'pnpm-workspace.yaml'))
   if (pnpmWorkspace !== undefined) {
     const document: unknown = parse(pnpmWorkspace)
     if (!isRecord(document) || document['packages'] === undefined) return []
     return stringList(document['packages'], 'pnpm-workspace.yaml packages')
   }
-  const manifest = await readOptional(join(root, 'package.json'))
+  const manifest = await readOptionalTextFile(join(root, 'package.json'))
   if (manifest === undefined) return []
   const parsed: unknown = JSON.parse(manifest)
   if (!isRecord(parsed) || parsed['workspaces'] === undefined) return []
@@ -68,7 +60,7 @@ function isTestSupportManifest(manifest: Record<string, unknown>): boolean {
 /** The package manifest in `directory`, or undefined when it holds none. */
 async function readManifest(directory: string): Promise<Record<string, unknown> | undefined> {
   const path = join(directory, 'package.json')
-  const contents = await readOptional(path)
+  const contents = await readOptionalTextFile(path)
   if (contents === undefined) return undefined
   let manifest: unknown
   try {

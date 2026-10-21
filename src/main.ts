@@ -2,7 +2,7 @@ import { basename, dirname } from 'node:path'
 import process from 'node:process'
 import { parseArgs, styleText } from 'node:util'
 import type { CliOutput } from '@emberengineering/cli-output'
-import { GitCommandError, runGit } from '@emberengineering/foundation/git'
+import { GitCommandError, readCommonGitDirectory, runGit } from '@emberengineering/foundation/git'
 import { aggregate, selectLanguages } from './count.ts'
 import { countDocs } from './docs.ts'
 import { formatFull, formatJson, formatSummary, type Paint } from './report.ts'
@@ -44,23 +44,22 @@ Requires scc on PATH (brew install scc).
  * of a bare clone, whose common directory is not a `.git`, after its top level.
  */
 export async function checkout(cwd: string): Promise<{ root: string; name: string }> {
-  let output: string
+  /** The C locale keeps git's refusal in the English the check below reads. */
+  const environment = { ...process.env, LC_ALL: 'C' }
+  let root: string
   try {
-    output = await runGit(
-      ['rev-parse', '--path-format=absolute', '--show-toplevel', '--git-common-dir'],
-      /** The C locale keeps git's refusal in the English the check below reads. */
-      { cwd, env: { ...process.env, LC_ALL: 'C' } },
-    )
+    const answer = await runGit(['rev-parse', '--path-format=absolute', '--show-toplevel'], {
+      cwd,
+      env: environment,
+    })
+    root = answer.replace(/\r?\n$/u, '')
   } catch (error) {
     if (error instanceof GitCommandError && NOT_A_REPOSITORY.test(error.stderr)) {
       return { root: cwd, name: basename(cwd) }
     }
     throw error
   }
-  const [root, commonDirectory] = output.trim().split('\n')
-  if (root === undefined || commonDirectory === undefined) {
-    throw new Error('git rev-parse answered without a top level and a common directory')
-  }
+  const commonDirectory = await readCommonGitDirectory(cwd, environment)
   const name =
     basename(commonDirectory) === '.git' ? basename(dirname(commonDirectory)) : basename(root)
   return { root, name }

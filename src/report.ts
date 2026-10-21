@@ -1,4 +1,5 @@
 import type { styleText } from 'node:util'
+import { alignColumns, type ColumnAlignment } from '@emberengineering/cli-output'
 import type { LineCount, Totals } from './count.ts'
 import { DOCS_DIRECTORY, type DocsCount } from './docs.ts'
 
@@ -27,25 +28,15 @@ const LARGEST_COUNT = 5
 
 const LANGUAGE_COUNT = 4
 
-/**
- * Pads every column to its widest cell, right-aligned except the first and,
- * with `trailing`, the last. Cells are measured as written, so only the last
- * cell of a `trailing` table may already carry a style.
- */
+/** Aligns every column right except the first and, with `trailing`, the last. */
 function alignedRows(rows: readonly (readonly string[])[], trailing = false): string[] {
-  const widths = (rows[0] ?? []).map((_, column) =>
-    Math.max(...rows.map((row) => (row[column] ?? '').length)),
+  const columnCount = rows[0]?.length ?? 0
+  const align = Array.from(
+    { length: columnCount },
+    (_, column): ColumnAlignment =>
+      column === 0 || (trailing && column === columnCount - 1) ? 'left' : 'right',
   )
-  return rows.map((row) =>
-    row
-      .map((cell, column) =>
-        column === 0 || (trailing && column === row.length - 1)
-          ? cell.padEnd(widths[column] ?? 0)
-          : cell.padStart(widths[column] ?? 0),
-      )
-      .join('  ')
-      .trimEnd(),
-  )
+  return alignColumns(rows, { align })
 }
 
 /** Aligns a table and dims its header row. */
