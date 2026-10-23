@@ -45,9 +45,14 @@ Only programming languages count by default.
 
 ## Releasing
 
-Bump `version` in `package.json`, commit, and push a matching `v<version>`
-tag. The release workflow publishes to npm through trusted publishing, so no
-npm token is stored in the repository.
+Run the **Publish** workflow from the Actions tab on `main`. Pick a bump, or
+type an exact version. The workflow runs the checks, bumps the version,
+publishes to npm, pushes the version commit and tag, and creates a GitHub
+release. A prerelease version publishes under the `next` dist-tag. Set
+`dry_run` to stop before anything is published or pushed.
+
+It publishes through npm trusted publishing, so no npm token is stored in the
+repository.
 
 ## License
 
