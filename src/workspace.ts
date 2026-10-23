@@ -1,8 +1,7 @@
 import { glob } from 'node:fs/promises'
 import { join, relative } from 'node:path'
-import { isRecord } from '@emberengineering/foundation'
-import { readOptionalTextFile } from '@emberengineering/foundation/file'
 import { parse } from 'yaml'
+import { isRecord, readOptionalTextFile } from './file.ts'
 
 function stringList(value: unknown, source: string): string[] {
   if (!Array.isArray(value) || !value.every((entry) => typeof entry === 'string')) {

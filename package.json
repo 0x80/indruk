@@ -1,32 +1,38 @@
 {
-  "name": "@emberengineering/line-count",
+  "name": "indruk",
   "version": "0.1.0",
-  "private": true,
-  "description": "The linecount command: production and test code, comments and complexity for any checkout, bucketed by workspace package.",
+  "description": "Lines of code in any checkout, split into production and test code per workspace package, with comments, complexity and a word count of the docs.",
+  "keywords": [
+    "loc",
+    "lines-of-code",
+    "scc",
+    "monorepo",
+    "test-coverage"
+  ],
   "license": "MIT",
   "author": "Thijs Koerselman",
+  "homepage": "https://github.com/0x80/indruk#readme",
+  "bugs": {
+    "url": "https://github.com/0x80/indruk/issues"
+  },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/EmberEngineering/agent-tooling.git",
-    "directory": "packages/line-count"
+    "url": "git+https://github.com/0x80/indruk.git"
   },
   "bin": {
-    "linecount": "./dist/cli.mjs"
+    "indruk": "./dist/cli.mjs"
   },
   "files": [
-    "dist",
-    "src"
+    "dist"
   ],
   "type": "module",
   "scripts": {
     "build": "tsdown",
-    "postbuild": "node ../../scripts/src/write-build-stamp.mjs",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm typecheck && pnpm test && pnpm build"
   },
   "dependencies": {
-    "@emberengineering/cli-output": "workspace:*",
-    "@emberengineering/foundation": "workspace:*",
     "mdast-util-from-markdown": "^2.1.0",
     "mdast-util-frontmatter": "^2.0.1",
     "mdast-util-gfm": "^3.1.0",
@@ -34,19 +40,18 @@
     "micromark-extension-frontmatter": "^2.0.0",
     "micromark-extension-gfm": "^3.0.0",
     "micromark-extension-mdxjs": "^3.0.0",
-    "yaml": "catalog:",
-    "zod": "catalog:"
+    "yaml": "^2.8.1",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@emberengineering/config-vitest": "workspace:*",
-    "@emberengineering/typescript-config": "workspace:*",
     "@types/mdast": "^4.0.4",
-    "@types/node": "catalog:",
-    "tsdown": "catalog:",
-    "typescript": "catalog:",
-    "vitest": "catalog:"
+    "@types/node": "^24.0.0",
+    "tsdown": "^0.16.0",
+    "typescript": "^5.9.0",
+    "vitest": "^4.1.11"
   },
   "engines": {
     "node": ">=24"
-  }
+  },
+  "packageManager": "pnpm@10.18.0"
 }

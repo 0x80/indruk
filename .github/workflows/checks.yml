@@ -1,0 +1,28 @@
+name: Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install scc
+        run: |
+          curl -fsSL https://github.com/boyter/scc/releases/download/v3.5.0/scc_Linux_x86_64.tar.gz | tar -xz -C "$RUNNER_TEMP" scc
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build

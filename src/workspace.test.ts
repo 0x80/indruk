@@ -1,15 +1,15 @@
 import { mkdir, writeFile } from 'node:fs/promises'
-import { temporaryDirectory } from '@emberengineering/config-vitest/temporary-directory'
 import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { workspacePackages } from './workspace.ts'
+import { temporaryDirectory } from './test-support.ts'
 
 /** A checkout owned by the calling test, removed when that test finishes. */
 async function checkout(): Promise<{
   root: string
   write: (path: string, contents?: string) => Promise<void>
 }> {
-  const root = await temporaryDirectory('line-count-workspace-')
+  const root = await temporaryDirectory('indruk-workspace-')
   return {
     root,
     write: async (path, contents = '{}') => {

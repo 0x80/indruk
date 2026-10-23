@@ -1,7 +1,7 @@
 import type { styleText } from 'node:util'
-import { alignColumns, type ColumnAlignment } from '@emberengineering/cli-output'
 import type { LineCount, Totals } from './count.ts'
 import { DOCS_DIRECTORY, type DocsCount } from './docs.ts'
+import { alignColumns, type ColumnAlignment } from './table.ts'
 
 /**
  * Styles a piece of report text. The command passes `styleText`, which
@@ -36,7 +36,7 @@ function alignedRows(rows: readonly (readonly string[])[], trailing = false): st
     (_, column): ColumnAlignment =>
       column === 0 || (trailing && column === columnCount - 1) ? 'left' : 'right',
   )
-  return alignColumns(rows, { align })
+  return alignColumns(rows, align)
 }
 
 /** Aligns a table and dims its header row. */

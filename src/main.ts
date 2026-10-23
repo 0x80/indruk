@@ -1,17 +1,20 @@
 import { basename, dirname } from 'node:path'
 import process from 'node:process'
 import { parseArgs, styleText } from 'node:util'
-import type { CliOutput } from '@emberengineering/cli-output'
-import { GitCommandError, readCommonGitDirectory, runGit } from '@emberengineering/foundation/git'
 import { aggregate, selectLanguages } from './count.ts'
 import { countDocs } from './docs.ts'
+import { GitCommandError, readCommonGitDirectory, runGit } from './git.ts'
 import { formatFull, formatJson, formatSummary, type Paint } from './report.ts'
 import { runScc } from './scc.ts'
 import { workspacePackages } from './workspace.ts'
 
-export type LineCountIo = Pick<CliOutput, 'stdout' | 'stderr'> & { cwd: string }
+export type IndrukIo = {
+  stdout: (text: string) => void
+  stderr: (text: string) => void
+  cwd: string
+}
 
-const HELP = `Usage: linecount [options]
+const HELP = `Usage: indruk [options]
 
 Lines of code in the current checkout, split into production code and test
 code, per workspace package. Test code is test files, test directories,
@@ -32,7 +35,7 @@ Options
   --all-languages        also count Markdown, JSON, YAML and other non-code files
   -h, --help             print this message
 
-Requires scc on PATH (brew install scc).
+Requires scc on PATH: https://github.com/boyter/scc#install
 `
 
 /**
@@ -80,8 +83,8 @@ function parseExtensions(value: string): string[] {
   return extensions
 }
 
-/** Runs `linecount` and answers its exit code; a refusal is written to stderr. */
-export async function main(argv: readonly string[], io: LineCountIo): Promise<number> {
+/** Runs `indruk` and answers its exit code; a refusal is written to stderr. */
+export async function main(argv: readonly string[], io: IndrukIo): Promise<number> {
   try {
     const { values } = parseArgs({
       args: [...argv],
@@ -124,7 +127,7 @@ export async function main(argv: readonly string[], io: LineCountIo): Promise<nu
     )
     return 0
   } catch (error) {
-    io.stderr(`linecount: ${error instanceof Error ? error.message : String(error)}\n`)
+    io.stderr(`indruk: ${error instanceof Error ? error.message : String(error)}\n`)
     return 1
   }
 }

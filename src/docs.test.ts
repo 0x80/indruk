@@ -1,8 +1,8 @@
 import { mkdir, writeFile } from 'node:fs/promises'
-import { temporaryDirectory } from '@emberengineering/config-vitest/temporary-directory'
 import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { countDocs, proseWords, TOP_LEVEL_DOCS } from './docs.ts'
+import { temporaryDirectory } from './test-support.ts'
 
 describe('proseWords', () => {
   it.each([
@@ -81,7 +81,7 @@ describe('proseWords', () => {
 
 describe('countDocs', () => {
   it('reads only Markdown and MDX under docs, summing words per subdirectory', async () => {
-    const root = await temporaryDirectory('line-count-docs-')
+    const root = await temporaryDirectory('indruk-docs-')
     const write = async (path: string, contents: string): Promise<void> => {
       await mkdir(dirname(join(root, path)), { recursive: true })
       await writeFile(join(root, path), contents)
@@ -117,7 +117,7 @@ describe('countDocs', () => {
   })
 
   it('names the file that does not parse', async () => {
-    const root = await temporaryDirectory('line-count-docs-')
+    const root = await temporaryDirectory('indruk-docs-')
     await mkdir(join(root, 'docs'), { recursive: true })
     await writeFile(join(root, 'docs', 'broken.mdx'), 'The total is {1 +\n')
 

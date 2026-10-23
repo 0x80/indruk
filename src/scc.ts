@@ -1,5 +1,5 @@
-import { ProcessLaunchError, runProcess } from '@emberengineering/foundation/process'
 import { z } from 'zod'
+import { ProcessLaunchError, runProcess } from './process.ts'
 
 /**
  * The part of `scc --by-file --format=json` the count reads. scc emits
@@ -44,11 +44,10 @@ export async function runScc(
     result = await runProcess('scc', [...sccArguments, '.'], {
       cwd: root,
       outputLimit: OUTPUT_LIMIT,
-      terminateOnOverflow: true,
     })
   } catch (error) {
     if (error instanceof ProcessLaunchError && error.code === 'ENOENT') {
-      throw new Error('scc is not installed. Install it with: brew install scc', { cause: error })
+      throw new Error('scc is not installed. Install it from https://github.com/boyter/scc#install, as in: brew install scc', { cause: error })
     }
     throw error
   }

@@ -1,10 +1,9 @@
 import { execFileSync } from 'node:child_process'
 import { chmod, mkdir, writeFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
-import { CHILD_PROCESS_BUDGET_MILLISECONDS } from '@emberengineering/config-vitest/spawn-budgets'
-import { temporaryDirectory } from '@emberengineering/config-vitest/temporary-directory'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { checkout, main } from './main.ts'
+import { CHILD_PROCESS_BUDGET_MILLISECONDS, temporaryDirectory } from './test-support.ts'
 
 vi.setConfig({
   testTimeout: CHILD_PROCESS_BUDGET_MILLISECONDS,
@@ -50,15 +49,15 @@ describe('main', () => {
     const result = await run(['--help'])
 
     expect(result.code).toBe(0)
-    expect(result.out).toMatch(/^Usage: linecount \[options\]/u)
+    expect(result.out).toMatch(/^Usage: indruk \[options\]/u)
   })
 
   it.each([
-    [['--full', '--json'], 'linecount: --full and --json cannot be combined\n'],
-    [['--extensions', ' , '], 'linecount: --extensions needs at least one extension\n'],
+    [['--full', '--json'], 'indruk: --full and --json cannot be combined\n'],
+    [['--extensions', ' , '], 'indruk: --extensions needs at least one extension\n'],
     [
       ['src'],
-      "linecount: Unexpected argument 'src'. This command does not take positional arguments\n",
+      "indruk: Unexpected argument 'src'. This command does not take positional arguments\n",
     ],
   ])('refuses %j before counting anything', async (argv, message) => {
     const result = await run(argv)
@@ -69,7 +68,7 @@ describe('main', () => {
 
 describe('checkout', () => {
   it('names a linked worktree after its repository and counts from its top level', async () => {
-    const directory = await temporaryDirectory('line-count-main-', { realPath: true })
+    const directory = await temporaryDirectory('indruk-main-', { realPath: true })
     const repository = join(directory, 'demo')
     git(['init', '-q', repository])
     git(['-C', repository, 'commit', '-q', '--allow-empty', '-m', 'start'])
@@ -81,7 +80,7 @@ describe('checkout', () => {
   })
 
   it('names a worktree of a bare clone after its own top level', async () => {
-    const directory = await temporaryDirectory('line-count-main-', { realPath: true })
+    const directory = await temporaryDirectory('indruk-main-', { realPath: true })
     const source = join(directory, 'source')
     git(['init', '-q', source])
     git(['-C', source, 'commit', '-q', '--allow-empty', '-m', 'start'])
@@ -94,14 +93,14 @@ describe('checkout', () => {
   })
 
   it('counts the directory itself outside any repository', async () => {
-    const directory = await temporaryDirectory('line-count-main-', { realPath: true })
+    const directory = await temporaryDirectory('indruk-main-', { realPath: true })
     vi.stubEnv('GIT_CEILING_DIRECTORIES', dirname(directory))
 
     expect(await checkout(directory)).toEqual({ root: directory, name: basename(directory) })
   })
 
   it('refuses a repository git will not read rather than counting the subdirectory', async () => {
-    const directory = await temporaryDirectory('line-count-main-', { realPath: true })
+    const directory = await temporaryDirectory('indruk-main-', { realPath: true })
     git(['init', '-q', directory])
     git(['-C', directory, 'config', 'core.repositoryformatversion', '99'])
     await mkdir(join(directory, 'src'))
@@ -117,7 +116,7 @@ describe('checkout', () => {
 async function fakeCheckout(
   extraFiles: readonly { Location: string; Code: number }[] = [],
 ): Promise<string> {
-  const directory = await temporaryDirectory('line-count-main-', { realPath: true })
+  const directory = await temporaryDirectory('indruk-main-', { realPath: true })
   const repository = join(directory, 'demo')
   git(['init', '-q', repository])
   const bin = join(directory, 'bin')

@@ -1,12 +1,17 @@
 {
-  "extends": "@emberengineering/typescript-config/base.json",
   "compilerOptions": {
-    "rootDir": ".",
+    "target": "ESNext",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
     "allowImportingTsExtensions": true,
     "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
     "noEmit": true,
+    "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "scripts/**/*.ts", "tsdown.config.ts", "vitest.config.ts"],
+  "include": ["src/**/*.ts", "tsdown.config.ts", "vitest.config.ts"],
   "exclude": ["node_modules", "dist"]
 }

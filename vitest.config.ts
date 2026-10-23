@@ -1,4 +1,5 @@
-/** vitest.config.ts */
-import { createUnitConfig } from '@emberengineering/config-vitest'
+import { defineConfig } from 'vitest/config'
 
-export default createUnitConfig()
+export default defineConfig({
+  test: { include: ['src/**/*.test.ts'] },
+})
