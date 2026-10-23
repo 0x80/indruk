@@ -1,6 +1,6 @@
 {
   "name": "indruk",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Lines of code in any checkout, split into production and test code per workspace package, with comments, complexity and a word count of the docs.",
   "keywords": [
     "loc",
